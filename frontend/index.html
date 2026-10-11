@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>내 데이터 기반 AI 비서</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 사이드바: 대화 기록 -->
+    <aside class="sidebar">
+      <h2>대화 목록</h2>
+      <button id="newChatBtn">+ 새 대화 시작</button>
+      <ul id="conversationList"></ul>
+    </aside>
+
+    <!-- 메인 대시보드 및 채팅 영역 -->
+    <main class="main-content">
+      <!-- 상단 요약 카드 -->
+      <section class="summary-section">
+        <h2>📊 데이터 요약 정보</h2>
+        <div id="summaryCards" class="cards-grid">
+          <div class="card"><span>기간</span><strong id="summaryPeriod">-</strong></div>
+          <div class="card"><span>총 데이터</span><strong id="summaryCount">-</strong></div>
+          <div class="card"><span>평균 / 최고</span><strong id="summaryStats">-</strong></div>
+          <div class="card"><span>트렌드</span><strong id="summaryTrend">-</strong></div>
+        </div>
+      </section>
+
+      <!-- AI 채팅 영역 -->
+      <section class="chat-section">
+        <div id="chatMessages" class="messages-container"></div>
+        <div id="loadingIndicator" class="loading hidden">AI가 답변을 생성하고 있습니다...</div>
+        <form id="chatForm" class="chat-form">
+          <input type="text" id="chatInput" placeholder="내 데이터에 대해 궁금한 점을 물어보세요..." required />
+          <button type="submit">전송</button>
+        </form>
+      </section>
+
+      <!-- 하단 데이터 관리 영역 (CRUD) -->
+      <section class="data-management">
+        <h2>📝 시계열 데이터 관리</h2>
+        <form id="addDataForm" class="data-form">
+          <input type="date" id="inputDate" required />
+          <input type="number" step="0.1" id="inputValue" placeholder="값 (예: 4.5)" required />
+          <input type="text" id="inputMemo" placeholder="메모" required />
+          <button type="submit">데이터 추가</button>
+        </form>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>날짜</th><th>값</th><th>메모</th><th>작동</th></tr>
+            </thead>
+            <tbody id="dataTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
