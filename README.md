@@ -57,8 +57,8 @@ ALLOWED_ORIGINS="*"
 ### 1) 프로젝트 클론 및 이동
 
 ```bash
-git clone https://github.com/본인_아이디/프로젝트명.git
-cd 프로젝트명/backend
+git clone https://github.com/ljk-cidy/M1-2.git
+cd M1-2/backend
 
 ```
 
