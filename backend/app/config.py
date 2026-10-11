@@ -1,23 +1,16 @@
-import os
 import json
-import firebase_admin
-from firebase_admin import credentials, firestore
-from dotenv import load_dotenv
+import os
+from firebase_admin import credentials, initialize_app
 
-load_dotenv()
+# Render 환경변수에서 FIREBASE_CREDENTIALS 읽기
+firebase_creds_raw = os.getenv("FIREBASE_CREDENTIALS")
 
-# Firebase Service Account 설정
-service_account_env = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
-
-if service_account_env:
-    # Production: 환경 변수 문자열에서 JSON 파싱
-    cred_dict = json.loads(service_account_env)
+if firebase_creds_raw:
+    # 환경변수로 등록된 JSON 문자열 파싱
+    cred_dict = json.loads(firebase_creds_raw)
     cred = credentials.Certificate(cred_dict)
 else:
-    # Local: serviceAccountKey.json 파일 사용
+    # 로컬 개발 환경용 (로컬에 파일이 있는 경우)
     cred = credentials.Certificate("serviceAccountKey.json")
 
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred)
-
-db = firestore.client()
+initialize_app(cred)
