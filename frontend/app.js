@@ -149,3 +149,53 @@ function startNewChat() {
   currentConversationId = null;
   document.getElementById('chatMessages').innerHTML = '';
 }
+let chartInstance = null;
+
+// 1. Chart.js 그래프 그리기
+function renderChart(items) {
+  const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+  const labels = items.map(item => item.date);
+  const values = items.map(item => item.value);
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '시계열 수치 변화',
+        data: values,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        fill: true,
+        tension: 0.2
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+// 2. CSV 내보내기 기능
+document.getElementById('exportCsvBtn').addEventListener('click', async () => {
+  const res = await fetch(`${API_BASE_URL}/api/data`);
+  const data = await res.json();
+  
+  let csvContent = "data:text/csv;charset=utf-8,ID,Date,Value,Memo\n";
+  data.forEach(row => {
+    csvContent += `${row.id},${row.date},${row.value},"${row.memo}"\n`;
+  });
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "timeseries_data.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+
+// 3. 다크 모드 토글 기능
+document.getElementById('darkModeToggle').addEventListener('click', () => {
+  document.body.classList.toggle('dark-theme');
+});

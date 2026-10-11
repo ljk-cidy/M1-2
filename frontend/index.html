@@ -61,3 +61,20 @@
   <script src="app.js"></script>
 </body>
 </html>
+<!-- head 태그 내에 Chart.js 라이브러리 추가 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- 상단 헤더에 다크 모드 토글 버튼 추가 -->
+<header style="display: flex; justify-content: space-between; align-items: center;">
+  <h1>내 데이터 AI 비서</h1>
+  <button id="darkModeToggle">🌙 다크 모드</button>
+</header>
+
+<!-- 요약 카드 아래 차트 및 CSV 버튼 영역 추가 -->
+<section class="visualization-section">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3>📈 시계열 데이터 추세 그래프</h3>
+    <button id="exportCsvBtn">📥 CSV 내보내기</button>
+  </div>
+  <canvas id="timeSeriesChart" style="max-height: 250px;"></canvas>
+</section>

@@ -77,3 +77,76 @@ def chat_with_ai(req: ChatRequest):
         "conversation_id": conv_id,
         "summary_used": summary
     }
+import json
+import os
+from fastapi import APIRouter
+from openai import OpenAI
+from app.config import db
+from app.services.analyzer import calculate_summary
+from app.models import ChatRequest
+
+router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+# 1. GPT가 호출할 도구(Tools) 스키마 정의
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_data_summary",
+            "description": "저장된 시계열 데이터의 통계 요약(총합, 평균, 최고/최저, 추세 등)을 조회합니다.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    }
+]
+
+@router.post("")
+def chat_with_function_calling(req: ChatRequest):
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    messages = [
+        {"role": "system", "content": "당신은 맞춤형 AI 비서입니다. 사용자의 데이터 관련 질문에 필요 시 도구를 호출하여 정확한 통계를 확인하고 답변하세요."},
+        {"role": "user", "content": req.message}
+    ]
+
+    # 1차 GPT 호출 (도구 제공)
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        tools=TOOLS,
+        tool_choice="auto"
+    )
+
+    response_message = response.choices[0].message
+    tool_calls = response_message.tool_calls
+
+    # 2. GPT가 도구 호출을 요청했는지 검증
+    if tool_calls:
+        messages.append(response_message)
+        
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            
+            if function_name == "get_data_summary":
+                # Firestore에서 데이터 읽어와 계산 실행
+                docs = db.collection("data").stream()
+                data_list = [d.to_dict() for d in docs]
+                summary_result = calculate_summary(data_list)
+
+                # 도구 실행 결과를 GPT에게 전달
+                messages.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": json.dumps(summary_result, ensure_ascii=False)
+                })
+
+        # 3. 도구 결과를 반영하여 최종 답변 생성
+        second_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages
+        )
+        ai_reply = second_response.choices[0].message.content
+    else:
+        ai_reply = response_message.content
+
+    return {"reply": ai_reply}
