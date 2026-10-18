@@ -68,6 +68,25 @@ def chat_with_ai(req: ChatRequest, db=Depends(get_db)):
                 status_code=502, detail="AI returned an empty reply"
             )
     except APIError as exc:
+        body = exc.body if isinstance(exc.body, dict) else {}
+        error = body.get("error", body)
+        code = error.get("code") if isinstance(error, dict) else None
+        error_type = error.get("type") if isinstance(error, dict) else None
+        if code in {"credit_balance_exhausted", "insufficient_quota"} or (
+            error_type == "insufficient_quota"
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "OpenAI API 사용 가능 잔액 또는 한도가 부족합니다. "
+                    "프로젝트의 결제·사용 한도를 확인해 주세요."
+                ),
+            ) from exc
+        if getattr(exc, "status_code", None) == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="AI 요청이 많습니다. 잠시 후 다시 시도하세요.",
+            ) from exc
         raise HTTPException(
             status_code=502,
             detail="AI service unavailable; please retry later",

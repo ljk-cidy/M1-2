@@ -6,7 +6,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import httpx
 from fastapi.testclient import TestClient
+from openai import RateLimitError
 
 from app.config import get_db
 from app.main import app
@@ -187,6 +189,30 @@ class ApiTests(unittest.TestCase):
             502,
         )
         self.assertEqual(self.db.collection("conversations").store, {})
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    @patch("app.routers.chat.OpenAI")
+    def test_quota_and_rate_limit_errors_do_not_save(self, mock_openai):
+        sdk = mock_openai.return_value.__enter__.return_value
+        for code, expected_status in [
+            ("credit_balance_exhausted", 503),
+            ("insufficient_quota", 503),
+            ("rate_limit_exceeded", 429),
+        ]:
+            with self.subTest(code=code):
+                response = httpx.Response(
+                    429,
+                    request=httpx.Request("POST", "https://api.openai.com"),
+                )
+                sdk.chat.completions.create.side_effect = RateLimitError(
+                    "Upstream error must not be exposed",
+                    response=response,
+                    body={"code": code},
+                )
+                result = self.client.post("/api/chat", json={"message": "Hi"})
+                self.assertEqual(result.status_code, expected_status)
+                self.assertNotIn("Upstream", result.text)
+                self.assertEqual(self.db.collection("conversations").store, {})
 
     def test_docs_without_credentials(self):
         self.assertEqual(self.client.get("/docs").status_code, 200)
