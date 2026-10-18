@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <header class="toolbar"><h1>내 학습 데이터 AI 비서</h1><button id="darkModeToggle" type="button">다크 모드</button></header>
+  <p id="status" role="status" aria-live="polite">서버 연결 중… 첫 요청은 서버 시작으로 지연될 수 있습니다.</p>
   <div class="container">
     <!-- 사이드바: 대화 기록 -->
     <aside class="sidebar">
@@ -28,12 +30,13 @@
         </div>
       </section>
 
+      <section class="visualization-section"><h2>학습 시간 추세</h2><button id="exportCsvBtn" type="button">CSV 내보내기</button><svg id="timeSeriesChart" viewBox="0 0 800 220" role="img" aria-label="날짜별 학습 시간 그래프"></svg></section>
       <!-- AI 채팅 영역 -->
       <section class="chat-section">
         <div id="chatMessages" class="messages-container"></div>
         <div id="loadingIndicator" class="loading hidden">AI가 답변을 생성하고 있습니다...</div>
         <form id="chatForm" class="chat-form">
-          <input type="text" id="chatInput" placeholder="내 데이터에 대해 궁금한 점을 물어보세요..." required />
+          <input type="text" id="chatInput" aria-label="질문" maxlength="4000" placeholder="내 데이터에 대해 궁금한 점을 물어보세요..." required />
           <button type="submit">전송</button>
         </form>
       </section>
@@ -42,9 +45,9 @@
       <section class="data-management">
         <h2>📝 시계열 데이터 관리</h2>
         <form id="addDataForm" class="data-form">
-          <input type="date" id="inputDate" required />
-          <input type="number" step="0.1" id="inputValue" placeholder="값 (예: 4.5)" required />
-          <input type="text" id="inputMemo" placeholder="메모" required />
+          <input type="date" id="inputDate" aria-label="날짜" required />
+          <input type="number" step="0.1" id="inputValue" aria-label="학습 시간" placeholder="값 (예: 4.5)" required />
+          <input type="text" id="inputMemo" aria-label="메모" maxlength="1000" placeholder="메모" required />
           <button type="submit">데이터 추가</button>
         </form>
         <div class="table-wrapper">
@@ -58,23 +61,7 @@
       </section>
     </main>
   </div>
-  <script src="app.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
-<!-- head 태그 내에 Chart.js 라이브러리 추가 -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- 상단 헤더에 다크 모드 토글 버튼 추가 -->
-<header style="display: flex; justify-content: space-between; align-items: center;">
-  <h1>내 데이터 AI 비서</h1>
-  <button id="darkModeToggle">🌙 다크 모드</button>
-</header>
-
-<!-- 요약 카드 아래 차트 및 CSV 버튼 영역 추가 -->
-<section class="visualization-section">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h3>📈 시계열 데이터 추세 그래프</h3>
-    <button id="exportCsvBtn">📥 CSV 내보내기</button>
-  </div>
-  <canvas id="timeSeriesChart" style="max-height: 250px;"></canvas>
-</section>

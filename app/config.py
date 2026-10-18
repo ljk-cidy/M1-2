@@ -1,23 +1,47 @@
-import os
+"""Load settings and initialize Firestore only when a request needs it."""
+
 import json
+import os
+from functools import lru_cache
+from pathlib import Path
+
 import firebase_admin
-from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
+from fastapi import HTTPException
+from firebase_admin import credentials, firestore
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT_DIR / ".env")
 
-# Firebase Service Account 설정
-service_account_env = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
 
-if service_account_env:
-    # Production: 환경 변수 문자열에서 JSON 파싱
-    cred_dict = json.loads(service_account_env)
-    cred = credentials.Certificate(cred_dict)
-else:
-    # Local: serviceAccountKey.json 파일 사용
-    cred = credentials.Certificate("serviceAccountKey.json")
-
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred)
-
-db = firestore.client()
+@lru_cache
+def get_db():
+    """Reuse Firebase; return 503 when local credentials are missing."""
+    try:
+        try:
+            firebase_admin.get_app()
+        except ValueError:
+            account = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+            key_path = Path(
+                os.getenv(
+                    "GOOGLE_APPLICATION_CREDENTIALS",
+                    str(ROOT_DIR / "serviceAccountKey.json"),
+                )
+            )
+            if account:
+                credential = credentials.Certificate(json.loads(account))
+            elif key_path.is_file():
+                credential = credentials.Certificate(str(key_path))
+            else:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Firebase credentials are not configured",
+                )
+            firebase_admin.initialize_app(credential)
+        return firestore.client()
+    except HTTPException:
+        raise
+    except (ValueError, OSError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Firebase configuration is invalid"
+        ) from exc

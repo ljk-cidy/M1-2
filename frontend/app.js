@@ -1,201 +1,200 @@
-// 로컬 개발 환경 및 배포 환경 대응
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://127.0.0.1:8000'
-  : 'https://your-render-backend-url.onrender.com'; // Render 백엔드 주소 입력
+'use strict';
 
+const API_BASE_URL = (window.APP_CONFIG?.API_BASE_URL ||
+  (['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:8000' : '')).replace(/\/$/, '');
 let currentConversationId = null;
+let busy = false;
+let dataItems = [];
+const el = id => document.getElementById(id);
+const status = message => { el('status').textContent = message; };
 
-document.addEventListener('DOMContentLoaded', () => {
-  loadSummary();
-  loadDataList();
-  loadConversations();
-
-  document.getElementById('chatForm').addEventListener('submit', handleChatSubmit);
-  document.getElementById('addDataForm').addEventListener('submit', handleAddData);
-  document.getElementById('newChatBtn').addEventListener('click', startNewChat);
-});
-
-// 1. 요약 정보 로드
-async function loadSummary() {
+async function request(route, options = {}) {
+  if (!API_BASE_URL) throw new Error('API_BASE_URL 설정을 확인하세요.');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
   try {
-    const res = await fetch(`${API_BASE_URL}/api/data/summary`);
-    const data = await res.json();
-    document.getElementById('summaryPeriod').innerText = data.period;
-    document.getElementById('summaryCount').innerText = `${data.count}개`;
-    document.getElementById('summaryStats').innerText = `${data.metrics.average} / ${data.metrics.max}`;
-    document.getElementById('summaryTrend').innerText = data.trend;
-  } catch (err) {
-    console.error('요약 정보 불러오기 실패:', err);
-  }
-}
-
-// 2. AI 채팅 전송
-async function handleChatSubmit(e) {
-  e.preventDefault();
-  const inputEl = document.getElementById('chatInput');
-  const message = inputEl.value.trim();
-  if (!message) return;
-
-  appendMessage('user', message);
-  inputEl.value = '';
-  showLoading(true);
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, conversation_id: currentConversationId })
+    const response = await fetch(API_BASE_URL + route, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      signal: controller.signal
     });
-    const data = await res.json();
-    appendMessage('assistant', data.reply);
-    currentConversationId = data.conversation_id;
-    loadConversations();
-  } catch (err) {
-    appendMessage('assistant', '오류가 발생했습니다. 다시 시도해 주세요.');
-  } finally {
-    showLoading(false);
-  }
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(typeof data.detail === 'string' ? data.detail : '입력값과 서버 설정을 확인하세요.');
+    }
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('서버 응답이 지연됩니다. 잠시 후 다시 시도하세요.');
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 
 function appendMessage(role, text) {
-  const container = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  div.innerText = text;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
+  const message = document.createElement('div');
+  message.className = 'msg ' + role;
+  message.textContent = text;
+  el('chatMessages').append(message);
+  el('chatMessages').scrollTop = el('chatMessages').scrollHeight;
 }
 
-function showLoading(isLoading) {
-  const el = document.getElementById('loadingIndicator');
-  if (isLoading) el.classList.remove('hidden');
-  else el.classList.add('hidden');
+async function loadSummary() {
+  const data = await request('/api/data/summary');
+  el('summaryPeriod').textContent = data.period;
+  el('summaryCount').textContent = data.count + '개';
+  el('summaryStats').textContent = data.metrics.average + ' / ' + data.metrics.max;
+  el('summaryTrend').textContent = data.trend;
 }
 
-// 3. 시계열 데이터 목록 및 CRUD
 async function loadDataList() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/data`);
-    const items = await res.json();
-    const tbody = document.getElementById('dataTableBody');
-    tbody.innerHTML = '';
-    items.forEach(item => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${item.date}</td>
-        <td>${item.value}</td>
-        <td>${item.memo}</td>
-        <td><button class="del-btn" onclick="deleteData('${item.id}')">삭제</button></td>
-      `;
-      tbody.appendChild(tr);
+  dataItems = await request('/api/data');
+  const body = el('dataTableBody');
+  body.replaceChildren();
+  dataItems.forEach(item => {
+    const row = document.createElement('tr');
+    [item.date, item.value, item.memo].forEach(value => {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      row.append(cell);
     });
-  } catch (err) {
-    console.error('데이터 목록 불러오기 실패:', err);
-  }
-}
-
-async function handleAddData(e) {
-  e.preventDefault();
-  const date = document.getElementById('inputDate').value;
-  const value = parseFloat(document.getElementById('inputValue').value);
-  const memo = document.getElementById('inputMemo').value;
-
-  await fetch(`${API_BASE_URL}/api/data`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date, value, memo })
+    const cell = document.createElement('td');
+    const button = document.createElement('button');
+    button.textContent = '삭제';
+    button.className = 'del-btn';
+    button.onclick = async () => {
+      if (!confirm('이 데이터를 삭제하시겠습니까?')) return;
+      button.disabled = true;
+      try {
+        await request('/api/data/' + encodeURIComponent(item.id), { method: 'DELETE' });
+        await refreshData();
+        status('데이터가 삭제되었습니다.');
+      } catch (error) { status(error.message); }
+      finally { button.disabled = false; }
+    };
+    cell.append(button);
+    row.append(cell);
+    body.append(row);
   });
-
-  document.getElementById('addDataForm').reset();
-  loadDataList();
-  loadSummary();
+  renderChart(dataItems);
 }
 
-async function deleteData(id) {
-  if (!confirm('이 데이터를 삭제하시겠습니까?')) return;
-  await fetch(`${API_BASE_URL}/api/data/${id}`, { method: 'DELETE' });
-  loadDataList();
-  loadSummary();
-}
+async function refreshData() { await Promise.all([loadSummary(), loadDataList()]); }
 
-// 4. 대화 기록 목록 및 불러오기
 async function loadConversations() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/conversations`);
-    const list = await res.json();
-    const ul = document.getElementById('conversationList');
-    ul.innerHTML = '';
-    list.forEach(c => {
-      const li = document.createElement('li');
-      li.innerText = c.title;
-      li.onclick = () => loadSingleConversation(c.id);
-      ul.appendChild(li);
-    });
-  } catch (err) {
-    console.error('대화 목록 불러오기 실패:', err);
-  }
+  const items = await request('/api/conversations');
+  el('conversationList').replaceChildren();
+  items.forEach(item => {
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    button.textContent = item.title;
+    button.onclick = async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const data = await request('/api/conversations/' + encodeURIComponent(item.id));
+        currentConversationId = item.id;
+        el('chatMessages').replaceChildren();
+        data.messages.forEach(message => appendMessage(message.role, message.content));
+        status('대화를 불러왔습니다.');
+      } catch (error) { status(error.message); }
+      finally { setBusy(false); }
+    };
+    li.append(button);
+    el('conversationList').append(li);
+  });
 }
 
-async function loadSingleConversation(id) {
-  currentConversationId = id;
-  const res = await fetch(`${API_BASE_URL}/api/conversations/${id}`);
-  const data = await res.json();
-  const container = document.getElementById('chatMessages');
-  container.innerHTML = '';
-  data.messages.forEach(m => appendMessage(m.role, m.content));
+function setBusy(value) {
+  busy = value;
+  el('chatForm').querySelector('button').disabled = value;
+  el('chatInput').disabled = value;
+  el('newChatBtn').disabled = value;
 }
 
-function startNewChat() {
-  currentConversationId = null;
-  document.getElementById('chatMessages').innerHTML = '';
-}
-let chartInstance = null;
-
-// 1. Chart.js 그래프 그리기
 function renderChart(items) {
-  const ctx = document.getElementById('timeSeriesChart').getContext('2d');
-  const labels = items.map(item => item.date);
+  const svg = el('timeSeriesChart');
+  svg.replaceChildren();
+  if (!items.length) return;
   const values = items.map(item => item.value);
-
-  if (chartInstance) chartInstance.destroy();
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '시계열 수치 변화',
-        data: values,
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        fill: true,
-        tension: 0.2
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
+  const low = Math.min(...values);
+  const span = Math.max(...values) - low || 1;
+  const points = values.map((value, i) =>
+    (20 + i * 760 / Math.max(1, values.length - 1)) + ',' + (180 - (value - low) * 150 / span)
+  ).join(' ');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', points);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', '#2563eb');
+  line.setAttribute('stroke-width', '3');
+  svg.append(line);
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.setAttribute('x', '20');
+  label.setAttribute('y', '210');
+  label.textContent = items[0].date + ' ~ ' + items[items.length - 1].date + ' | 최소 ' + low + ' / 최대 ' + Math.max(...values) + ' 시간';
+  svg.append(label);
 }
 
-// 2. CSV 내보내기 기능
-document.getElementById('exportCsvBtn').addEventListener('click', async () => {
-  const res = await fetch(`${API_BASE_URL}/api/data`);
-  const data = await res.json();
-  
-  let csvContent = "data:text/csv;charset=utf-8,ID,Date,Value,Memo\n";
-  data.forEach(row => {
-    csvContent += `${row.id},${row.date},${row.value},"${row.memo}"\n`;
-  });
+el('chatForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const message = el('chatInput').value.trim();
+  if (!message || busy) return;
+  setBusy(true);
+  el('loadingIndicator').classList.remove('hidden');
+  try {
+    const data = await request('/api/chat', {
+      method: 'POST', body: JSON.stringify({ message, conversation_id: currentConversationId })
+    });
+    appendMessage('user', message);
+    appendMessage('assistant', data.reply);
+    el('chatInput').value = '';
+    currentConversationId = data.conversation_id;
+    status('답변과 대화가 저장되었습니다.');
+    await loadConversations();
+  } catch (error) { status(error.message); }
+  finally {
+    setBusy(false);
+    el('loadingIndicator').classList.add('hidden');
+  }
+});
 
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", "timeseries_data.csv");
-  document.body.appendChild(link);
+el('addDataForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button');
+  button.disabled = true;
+  try {
+    await request('/api/data', { method: 'POST', body: JSON.stringify({
+      date: el('inputDate').value, value: Number(el('inputValue').value), memo: el('inputMemo').value
+    }) });
+    el('addDataForm').reset();
+    await refreshData();
+    status('데이터가 저장되었습니다.');
+  } catch (error) { status(error.message); }
+  finally { button.disabled = false; }
+});
+
+el('newChatBtn').onclick = () => {
+  if (busy) return;
+  currentConversationId = null;
+  el('chatMessages').replaceChildren();
+  status('새 대화를 시작합니다.');
+};
+el('darkModeToggle').onclick = () => {
+  const dark = document.body.classList.toggle('dark-theme');
+  el('darkModeToggle').setAttribute('aria-pressed', String(dark));
+};
+el('exportCsvBtn').onclick = () => {
+  // Quote delimiters and prevent spreadsheet formulas in exported text.
+  const quote = value => '"' + String(value).replace(/^[=+@-]/, "'$&").replaceAll('"', '""') + '"';
+  const lines = [['ID', 'Date', 'Value', 'Memo'], ...dataItems.map(item =>
+    [item.id, item.date, item.value, item.memo])];
+  const csv = '\uFEFF' + lines.map(row => row.map(quote).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'learning_data.csv';
   link.click();
-  document.body.removeChild(link);
-});
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
-// 3. 다크 모드 토글 기능
-document.getElementById('darkModeToggle').addEventListener('click', () => {
-  document.body.classList.toggle('dark-theme');
-});
+Promise.all([refreshData(), loadConversations()])
+  .then(() => status('연결되었습니다. 데이터 단위: 학습 시간'))
+  .catch(error => status(error.message));

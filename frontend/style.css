@@ -27,3 +27,22 @@ table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 0.9rem; }
 th { background: #f8fafc; }
 .del-btn { background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; padding: 20px; gap: 12px; }
+#status { padding: 12px 20px; background: #e0ecff; color: #172554; }
+.visualization-section { padding: 20px; background: white; border-radius: 8px; }
+#timeSeriesChart { width: 100%; max-height: 260px; }
+#timeSeriesChart text { fill: currentColor; font-size: 14px; }
+button { cursor: pointer; padding: 8px 12px; border-radius: 4px; }
+button:disabled { opacity: .5; cursor: wait; }
+.msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+.table-wrapper { overflow-x: auto; }
+.dark-theme { background: #0f172a; color: #e2e8f0; }
+.dark-theme .summary-section, .dark-theme .chat-section, .dark-theme .data-management,
+.dark-theme .visualization-section, .dark-theme .card, .dark-theme th { background: #1e293b; color: #e2e8f0; }
+@media (max-width: 800px) {
+  .container { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .data-form { flex-wrap: wrap; }
+  .chat-form input { min-width: 0; }
+}

@@ -1,44 +1,46 @@
-from typing import List, Dict, Any
+"""Summarize chronological values and compare half-period averages."""
 
-def calculate_summary(data_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+from statistics import fmean, pstdev
+from typing import Any
+
+
+def calculate_summary(data_list: list[dict[str, Any]]) -> dict[str, Any]:
+    """Trend uses a 5% relative threshold, including negative baselines."""
     if not data_list:
         return {
             "period": "N/A",
             "count": 0,
-            "metrics": {"total": 0, "average": 0, "max": 0, "min": 0},
-            "trend": "데이터 없음"
+            "metrics": {
+                "total": 0,
+                "average": 0,
+                "max": 0,
+                "min": 0,
+                "standard_deviation": 0,
+            },
+            "trend": "데이터 없음",
         }
-
-    # 날짜 순 정렬
-    sorted_data = sorted(data_list, key=lambda x: x["date"])
-    dates = [d["date"] for d in sorted_data]
-    values = [float(d["value"]) for d in sorted_data]
-
-    total_val = sum(values)
-    avg_val = round(total_val / len(values), 2)
-    max_val = max(values)
-    min_val = min(values)
-
-    # 추세 분석: 전반부와 후반부 평균 비교
+    items = sorted(data_list, key=lambda item: item["date"])
+    values = [float(item["value"]) for item in items]
     mid = len(values) // 2
-    first_half_avg = sum(values[:mid]) / len(values[:mid]) if mid > 0 else avg_val
-    second_half_avg = sum(values[mid:]) / len(values[mid:]) if mid > 0 else avg_val
-
-    if second_half_avg > first_half_avg * 1.05:
-        trend = "상승 추세"
-    elif second_half_avg < first_half_avg * 0.95:
-        trend = "하락 추세"
-    else:
-        trend = "유지/보수적 추세"
-
+    trend = "유지 추세"
+    if mid:
+        first = fmean(values[:mid])
+        second = fmean(values[mid:])
+        change = second - first
+        threshold = abs(first) * 0.05
+        if change > threshold:
+            trend = "상승 추세"
+        elif change < -threshold:
+            trend = "하락 추세"
     return {
-        "period": f"{dates[0]} ~ {dates[-1]}",
-        "count": len(sorted_data),
+        "period": f"{items[0]['date']} ~ {items[-1]['date']}",
+        "count": len(items),
         "metrics": {
-            "total": round(total_val, 2),
-            "average": avg_val,
-            "max": max_val,
-            "min": min_val
+            "total": round(sum(values), 2),
+            "average": round(fmean(values), 2),
+            "max": max(values),
+            "min": min(values),
+            "standard_deviation": round(pstdev(values), 2),
         },
-        "trend": trend
+        "trend": trend,
     }

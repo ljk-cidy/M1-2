@@ -1,40 +1,42 @@
-from fastapi import APIRouter, HTTPException
-from app.config import db
+"""Persist and restore complete conversations."""
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.config import get_db
 from app.models import ConversationCreate
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
+
 @router.post("", status_code=201)
-def save_conversation(conv: ConversationCreate):
-    doc_ref = db.collection("conversations").document()
-    doc_data = conv.dict()
-    doc_ref.set(doc_data)
-    return {"id": doc_ref.id, **doc_data}
+def save_conversation(conv: ConversationCreate, db=Depends(get_db)):
+    doc = db.collection("conversations").document()
+    payload = conv.model_dump()
+    doc.set(payload)
+    return {"id": doc.id, **payload}
+
 
 @router.get("")
-def list_conversations():
-    docs = db.collection("conversations").stream()
-    result = []
-    for doc in docs:
-        d = doc.to_dict()
-        result.append({
-            "id": doc.id,
-            "title": d.get("title", "대화 기록"),
-            "messages": d.get("messages", [])
-        })
-    return result
+def list_conversations(db=Depends(get_db)):
+    """The list includes messages; the detail endpoint also returns them."""
+    return [
+        {**doc.to_dict(), "id": doc.id}
+        for doc in db.collection("conversations").stream()
+    ]
 
-@router.get("/{id}")
-def get_conversation(id: str):
-    doc = db.collection("conversations").document(id).get()
+
+@router.get("/{conversation_id}")
+def get_conversation(conversation_id: str, db=Depends(get_db)):
+    doc = db.collection("conversations").document(conversation_id).get()
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return {"id": doc.id, **doc.to_dict()}
+    return {**doc.to_dict(), "id": doc.id}
 
-@router.delete("/{id}")
-def delete_conversation(id: str):
-    doc_ref = db.collection("conversations").document(id)
-    if not doc_ref.get().exists:
+
+@router.delete("/{conversation_id}")
+def delete_conversation(conversation_id: str, db=Depends(get_db)):
+    doc = db.collection("conversations").document(conversation_id)
+    if not doc.get().exists:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    doc_ref.delete()
+    doc.delete()
     return {"message": "Conversation deleted"}
