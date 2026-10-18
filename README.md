@@ -116,12 +116,12 @@ GPT에는 최근 20개 메시지와 요약을 전달하며, 응답은 최대 500
 
 | 대상 | 설정 | 확인 상태 |
 | --- | --- | --- |
-| Render | 저장소 루트, render.yaml 또는 동일 실행 명령 | 실제 URL 확인 필요 |
-| Vercel | Root Directory: frontend, API_BASE_URL 설정 | 실제 URL 확인 필요 |
-| Swagger | Render 주소 + /docs | 배포 후 확인 필요 |
+| Render | 저장소 루트, Python 3.14.7 · Free | [백엔드 API](https://m1-2-tmp4.onrender.com) |
+| Vercel | frontend · Other · API_BASE_URL 적용 | [웹 서비스](https://m1-2-frontend-psi.vercel.app) |
+| Swagger | 배포 API 문서 | [Swagger UI](https://m1-2-tmp4.onrender.com/docs) |
 
 Vercel은 node build.mjs로 공개 API 주소를 config.js에 주입합니다.
-Render의 ALLOWED_ORIGINS에 실제 Vercel 도메인을 추가하세요.
+Render의 ALLOWED_ORIGINS에 https://m1-2-frontend-psi.vercel.app을 적용했습니다.
 첫 요청의 서버 시작 지연은 화면에 안내하며, 요청은 90초까지 기다립니다.
 
 현재 인증·사용자별 데이터 분리는 없습니다. 공개 배포에서는 모든 방문자가 동일한
@@ -142,9 +142,15 @@ python -m unittest discover -v
 ```
 
 CRUD·입력 검증·대화 복원·컨텍스트 주입·자동 저장·실패 시 미저장·요약 경계값을
-외부 API 호출 없이 검증합니다. 실제 Firestore/GPT 연동 및 새로고침 후 대화 복원까지 확인했습니다. 배포 검증은 별도입니다.
+외부 API 호출 없이 검증합니다. 실제 Firestore/GPT 연동 및 새로고침 후 대화 복원까지 확인했습니다. Render·Vercel 배포에서도 데이터 조회·CORS·실제 GPT 2회 호출·저장·웹 복원을 확인했습니다.
 
-실제 로컬 GPT 응답 및 대화 복원 화면입니다. 배포 서비스 증빙은 배포 후 추가합니다.
+실제 Render·Vercel 서비스에서 데이터 조회와 대화 복원을 확인한 화면입니다.
+
+![배포된 데이터 요약](docs/deployed-summary.png)
+
+![배포된 대화 복원](docs/deployed-conversation.png)
+
+로컬 실제 GPT 검증 화면:
 
 ![실제 GPT 대화 복원](docs/live-chat-restored.png)
 
@@ -154,7 +160,7 @@ CRUD·입력 검증·대화 복원·컨텍스트 주입·자동 저장·실패 �
 - [ ] 요약 카드와 질문·답변이 함께 보이는 최종 제출 화면
 - [ ] 데이터 추가 또는 삭제 결과
 - [x] 로컬 실제 대화 저장 및 새로고침 후 불러오기
-- [ ] 프론트·백엔드·Swagger 실제 배포 URL
+- [x] 프론트·백엔드·Swagger 실제 배포 URL
 
 선택 과제 중 그래프·표준편차·CSV·다크 모드는 구현했습니다.
 Function Calling 및 MCP/GPT Actions 연동은 미구현입니다.
