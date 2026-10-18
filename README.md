@@ -33,7 +33,7 @@ flowchart LR
 
 ## 구조와 코드 규칙
 
-``text
+```text
 app/
   main.py              # 앱 · CORS · 예외 처리
   config.py            # 환경 변수 · 지연 Firebase 초기화
@@ -127,6 +127,8 @@ Render의 ALLOWED_ORIGINS에 실제 Vercel 도메인을 추가하세요.
 현재 인증·사용자별 데이터 분리는 없습니다. 공개 배포에서는 모든 방문자가 동일한
 데이터를 읽고 수정하며 GPT 호출을 발생시킬 수 있으므로 개인 학습용으로 사용합니다.
 CORS는 인증을 대신하지 않습니다.
+
+데이터 확보 상태는 [데이터 점검 보고서](docs/data-audit.md)를 참고하세요.
 
 ## 검증과 제출
 
