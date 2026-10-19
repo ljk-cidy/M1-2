@@ -64,7 +64,18 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-.env.example을 .env로 복사하고 키를 설정한 다음 실행합니다.
+.env.example을 .env로 복사하고 키를 설정한 다음, 웹과 API를 함께 실행합니다.
+
+```bash
+python -m scripts.run_local
+```
+
+이 터미널을 열어 두세요. Ctrl+C는 두 서버를 종료합니다. PC나 앱 실행 세션이
+종료되면 로컬 서버도 중지되므로 다시 명령을 실행해야 합니다. 포트가 이미 사용
+중이면 기존 서버를 먼저 확인하세요. 항상 접속하려면 아래 배포 URL을 사용합니다.
+
+개별 실행이 필요할 때는 아래 명령을 사용합니다. 샘플 적재는 최초 준비 시에만
+선택적으로 실행하며, 서버를 켤 때마다 실행할 필요가 없습니다.
 
 ```bash
 python -m scripts.seed
